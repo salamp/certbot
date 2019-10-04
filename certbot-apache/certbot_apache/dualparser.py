@@ -188,7 +188,8 @@ class DualBlockNode(DualNodeBase):
                 raise AssertionError("Could not find a matching node.")
         return matched
 
-    def find_blocks(self, name, exclude=True):
+    # TODO: Re-set default "exclude" to True when apacheconfig version is implemented.
+    def find_blocks(self, name, exclude=False):
         """
         Performs a search for BlockNodes using both implementations and does simple
         checks for results. This is built upon the assumption that unimplemented
@@ -200,7 +201,7 @@ class DualBlockNode(DualNodeBase):
         return self._find_helper(DualBlockNode, "find_blocks", name,
                                  exclude=exclude)
 
-    def find_directives(self, name, exclude=True):
+    def find_directives(self, name, exclude=False):
         """
         Performs a search for DirectiveNodes using both implementations and
         checks the results. This is built upon the assumption that unimplemented
