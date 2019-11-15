@@ -257,6 +257,7 @@ class ApacheConfigurator(common.Installer):
         self.parser = self.get_parser()
 
         # Set up ParserNode root
+        self.USE_PARSERNODE = False
         pn_meta = {"augeasparser": self.parser,
                    "augeaspath": self.parser.get_root_augpath()}
         self.parser_root = self.get_parsernode_root(pn_meta)
@@ -889,6 +890,29 @@ class ApacheConfigurator(common.Installer):
         return vhost
 
     def get_virtual_hosts(self):
+        """
+        Temporary wrapper for legacy and ParserNode version for
+        get_virtual_hosts. This should be replaced with the ParserNode
+        implementation when ready.
+        """
+
+        v1_vhosts = self.get_virtual_hosts_v1()
+        v2_vhosts = self.get_virtual_hosts_v2()
+
+        for v1_vh in v1_vhosts:
+            found = False
+            for v2_vh in v2_vhosts:
+                if assertions.assertEqualVirtualHost(v1_vh, v2_vh):
+                    found = True
+            if not found:
+                raise errors.PluginError("EQuivelant for {} was not found".format(v1_vh.path))
+            assert found
+
+        if self.USE_PARSERNODE:
+            return v2_vhosts
+        return v1_vhosts
+
+    def get_virtual_hosts_v1(self):
         """Returns list of virtual hosts found in the Apache configuration.
 
         :returns: List of :class:`~certbot_apache.obj.VirtualHost`
@@ -940,6 +964,89 @@ class ApacheConfigurator(common.Installer):
                     internal_paths[realpath].add(internal_path)
                     vhs.append(new_vhost)
         return vhs
+
+    def get_virtual_hosts_v2(self):
+        """Returns list of virtual hosts found in the Apache configuration using
+        ParserNode interface.
+
+        :returns: List of :class:`~certbot_apache.obj.VirtualHost`
+            objects found in configuration
+        :rtype: list
+        """
+
+        vhs = []
+        vhosts = self.parser_root.find_blocks("VirtualHost", exclude=False)
+        for vhblock in vhosts:
+            vhs.append(self._create_vhost_v2(vhblock))
+        return vhs
+
+    def _create_vhost_v2(self, node):
+        """Used by get_virtual_hosts_v2 to create vhost objects using ParserNode
+        interfaces.
+
+        :param interfaces.BlockNode node: The BlockNode object of VirtualHost block
+        :returns: newly created vhost
+        :rtype: :class:`~certbot_apache.obj.VirtualHost`
+        """
+        addrs = set()
+        for param in node.parameters:
+            addrs.add(obj.Addr.fromstring(param))
+
+        is_ssl = False
+        sslengine = node.find_directives("SSLEngine")
+        if sslengine:
+            for directive in sslengine:
+                # TODO: apache-parser-v2
+                # This search should be made wiser. (using other identificators)
+                try:
+                    if directive.parameters[0].lower() == "on":
+                        is_ssl = True
+                except IndexError:
+                    pass
+
+        # "SSLEngine on" might be set outside of <VirtualHost>
+        # Treat vhosts with port 443 as ssl vhosts
+        for addr in addrs:
+            if addr.get_port() == "443":
+                is_ssl = True
+
+        macro = False
+        if node.find_directives("Macro"):
+            macro = True
+
+        vhost_enabled = self.parser.parsed_in_original(node.filepath)
+
+        vhost = obj.VirtualHost(node.filepath, None,
+                                addrs, is_ssl, vhost_enabled, modmacro=macro,
+                                node=node)
+
+        self._populate_vhost_names_v2(vhost)
+        return vhost
+
+    def _populate_vhost_names_v2(self, vhost):
+        """Helper function that populates the VirtualHost names.
+        :param host: In progress vhost whose names will be added
+        :type host: :class:`~certbot_apache.obj.VirtualHost`
+        """
+
+        servername_match = vhost.node.find_directives("ServerName",
+                                                      exclude=False)
+        serveralias_match = vhost.node.find_directives("ServerAlias",
+                                                       exclude=False)
+
+        servername = None
+        if servername_match:
+            try:
+                servername = servername_match[-1].parameters[-1]
+            except IndexError:
+                # ServerName directive was found, but didn't contain parameters
+                pass
+
+        if not vhost.modmacro:
+            for alias in serveralias_match:
+                for serveralias in alias.parameters:
+                    vhost.aliases.add(serveralias)
+            vhost.name = servername
 
     def is_name_vhost(self, target_addr):
         """Returns if vhost is a name based vhost

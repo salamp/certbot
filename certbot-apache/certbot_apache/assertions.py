@@ -102,3 +102,23 @@ def assertEqualSimple(first, second):
     """ Simple assertion """
     if not isPass(first) and not isPass(second):
         assert first == second
+
+def assertEqualVirtualHost(first, second):
+    """
+    Checks that two VirtualHost objects are similar. There are some built
+    in differences with the implementations: VirtualHost created by ParserNode
+    implementation doesn't have "path" defined, as it was used for Augeas path
+    and that cannot obviously be used in the future. Similarly the legacy
+    version lacks "node" variable, that has a reference to the BlockNode for the
+    VirtualHost.
+    """
+    return (
+        first.name == second.name and
+        first.aliases == second.aliases and
+        first.filep == second.filep and
+        first.addrs == second.addrs and
+        first.ssl == second.ssl and
+        first.enabled == second.enabled and
+        first.modmacro == second.modmacro and
+        first.ancestor == second.ancestor
+    )
