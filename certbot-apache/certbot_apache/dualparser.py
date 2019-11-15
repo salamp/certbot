@@ -25,7 +25,7 @@ class DualNodeBase(object):
             callable(firstval)
         ]
         if not any(exclusions):
-            if type(firstval) is not bool:
+            if not isinstance(firstval, bool):
                 # Assertion check does not work for bool like enabled
                 # as we have no way to figure out if it should pass or not
                 assertions.assertEqualSimple(firstval, secondval)

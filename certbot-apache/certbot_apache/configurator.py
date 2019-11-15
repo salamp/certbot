@@ -202,6 +202,11 @@ class ApacheConfigurator(common.Installer):
         self._autohsts = {}  # type: Dict[str, Dict[str, Union[int, float]]]
         # Reverter save notes
         self.save_notes = ""
+        # Should we use ParserNode implementation instead of the old behavior
+        self.USE_PARSERNODE = False
+        # Saves the list of file paths that were parsed initially, and
+        # not added to parser tree by self.conf("vhost-root") for example.
+        self.parsed_paths = []  # type: List[str]
 
         # These will be set in the prepare function
         self._prepared = False
@@ -257,14 +262,10 @@ class ApacheConfigurator(common.Installer):
         self.parser = self.get_parser()
 
         # Set up ParserNode root
-        self.USE_PARSERNODE = False
         pn_meta = {"augeasparser": self.parser,
                    "augeaspath": self.parser.get_root_augpath(),
                    "ac_ast": None}
         self.parser_root = self.get_parsernode_root(pn_meta)
-        # Save the list of file paths that were parsed initially, and
-        # not added to parser tree by self.conf("vhost-root") for example.
-        self.parsed_paths = self.parser_root.parsed_paths()
 
         # Check for errors in parsing files with Augeas
         self.parser.check_parsing_errors("httpd.aug")
