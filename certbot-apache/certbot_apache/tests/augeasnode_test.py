@@ -302,3 +302,7 @@ class AugeasParserNodeTest(util.ApacheTest):  # pylint: disable=too-many-public-
         self.config.parser_root.primary.metadata["augeaspath"] = ""
         ancs = self.config.parser_root.primary.find_ancestors("Anything")
         self.assertEqual(len(ancs), 0)
+
+    def test_parsed_paths(self):
+        paths = self.config.parser_root.parsed_paths()
+        self.assertEqual(len(paths), 6)
