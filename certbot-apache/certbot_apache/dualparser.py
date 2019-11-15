@@ -25,7 +25,10 @@ class DualNodeBase(object):
             callable(firstval)
         ]
         if not any(exclusions):
-            assertions.assertEqualSimple(firstval, secondval)
+            if type(firstval) is not bool:
+                # Assertion check does not work for bool like enabled
+                # as we have no way to figure out if it should pass or not
+                assertions.assertEqualSimple(firstval, secondval)
         return firstval
 
     def find_ancestors(self, name):

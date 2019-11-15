@@ -1,5 +1,6 @@
 """ Utility functions for certbot-apache plugin """
 import binascii
+import fnmatch
 
 from certbot import util
 from certbot.compat import os
@@ -105,3 +106,21 @@ def parse_define_file(filepath, varname):
 def unique_id():
     """ Returns an unique id to be used as a VirtualHost identifier"""
     return binascii.hexlify(os.urandom(16)).decode("utf-8")
+
+def included_in_paths(filepath, paths):
+    """
+    Returns true if the filepath is included in the list of paths
+    that may contain full paths or wildcard paths that need to be
+    expanded.
+
+    :param str filepath: Filepath to check
+    :params list paths: List of paths to check against
+
+    :returns: True if included
+    :rtype: bool
+    """
+
+    for path in paths:
+        if fnmatch.fnmatch(filepath, path):
+            return True
+    return False

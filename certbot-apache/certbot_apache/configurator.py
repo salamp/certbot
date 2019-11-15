@@ -262,6 +262,9 @@ class ApacheConfigurator(common.Installer):
                    "augeaspath": self.parser.get_root_augpath(),
                    "ac_ast": None}
         self.parser_root = self.get_parsernode_root(pn_meta)
+        # Save the list of file paths that were parsed initially, and
+        # not added to parser tree by self.conf("vhost-root") for example.
+        self.parsed_paths = self.parser_root.parsed_paths()
 
         # Check for errors in parsing files with Augeas
         self.parser.check_parsing_errors("httpd.aug")
@@ -903,11 +906,10 @@ class ApacheConfigurator(common.Installer):
         for v1_vh in v1_vhosts:
             found = False
             for v2_vh in v2_vhosts:
-                if assertions.assertEqualVirtualHost(v1_vh, v2_vh):
+                if assertions.isEqualVirtualHost(v1_vh, v2_vh):
                     found = True
             if not found:
-                raise errors.PluginError("EQuivelant for {} was not found".format(v1_vh.path))
-            assert found
+                raise AssertionError("Equivalent for {} was not found".format(v1_vh.path))
 
         if self.USE_PARSERNODE:
             return v2_vhosts
@@ -997,13 +999,8 @@ class ApacheConfigurator(common.Installer):
         sslengine = node.find_directives("SSLEngine")
         if sslengine:
             for directive in sslengine:
-                # TODO: apache-parser-v2
-                # This search should be made wiser. (using other identificators)
-                try:
-                    if directive.parameters[0].lower() == "on":
-                        is_ssl = True
-                except IndexError:
-                    pass
+                if directive.parameters[0].lower() == "on":
+                    is_ssl = True
 
         # "SSLEngine on" might be set outside of <VirtualHost>
         # Treat vhosts with port 443 as ssl vhosts
@@ -1012,14 +1009,12 @@ class ApacheConfigurator(common.Installer):
                 is_ssl = True
 
         macro = False
-        if node.find_directives("Macro"):
+        # Check if the VirtualHost is contained in a mod_macro block
+        if node.find_ancestors("Macro"):
             macro = True
-
-        vhost_enabled = self.parser.parsed_in_original(node.filepath)
-
-        vhost = obj.VirtualHost(node.filepath, None,
-                                addrs, is_ssl, vhost_enabled, modmacro=macro,
-                                node=node)
+        vhost = obj.VirtualHost(
+            node.filepath, None, addrs, is_ssl, node.enabled, modmacro=macro, node=node
+        )
 
         self._populate_vhost_names_v2(vhost)
         return vhost
@@ -1037,11 +1032,7 @@ class ApacheConfigurator(common.Installer):
 
         servername = None
         if servername_match:
-            try:
-                servername = servername_match[-1].parameters[-1]
-            except IndexError:
-                # ServerName directive was found, but didn't contain parameters
-                pass
+            servername = servername_match[-1].parameters[-1]
 
         if not vhost.modmacro:
             for alias in serveralias_match:

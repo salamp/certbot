@@ -111,11 +111,18 @@ class AugeasParserNode(interfaces.ParserNode):
 
         ancestors = []
 
+        parents = []
         parent = self.metadata["augeaspath"]
         while True:
             # Get the path of ancestor node
             parent = parent.rpartition("/")[0]
+            # Check if we don't have
             if not parent:
+                break
+            parents.append(parent)
+            if parent.endswith(apache_util.get_file_path(parent)):
+                # We're at the filename part of the Augeas XPATH
+                # No reason to dig deeper
                 break
             anc = self._create_blocknode(parent)
             if anc.name.lower() == name.lower():
@@ -136,7 +143,14 @@ class AugeasParserNode(interfaces.ParserNode):
 
         # Because of the dynamic nature, and the fact that we're not populating
         # the complete ParserNode tree, we use the search parent as ancestor
+
+        # Check if the file was included from the root config or initial state
+        enabled = self.parser.parsed_in_original(
+            apache_util.get_file_path(path)
+        )
+
         return AugeasBlockNode(name=name,
+                               enabled=enabled,
                                ancestor=assertions.PASS,
                                filepath=apache_util.get_file_path(path),
                                metadata=metadata)
@@ -267,10 +281,15 @@ class AugeasBlockNode(AugeasDirectiveNode):
 
         # Create the new block
         self.parser.aug.insert(insertpath, name, before)
+        # Check if the file was included from the root config or initial state
+        enabled = self.parser.parsed_in_original(
+            apache_util.get_file_path(realpath)
+        )
 
         # Parameters will be set at the initialization of the new object
         new_block = AugeasBlockNode(name=name,
                                     parameters=parameters,
+                                    enabled=enabled,
                                     ancestor=assertions.PASS,
                                     filepath=apache_util.get_file_path(realpath),
                                     metadata=new_metadata)
@@ -293,9 +312,14 @@ class AugeasBlockNode(AugeasDirectiveNode):
         self.parser.aug.insert(insertpath, "directive", before)
         # Set the directive key
         self.parser.aug.set(realpath, name)
+        # Check if the file was included from the root config or initial state
+        enabled = self.parser.parsed_in_original(
+            apache_util.get_file_path(realpath)
+        )
 
         new_dir = AugeasDirectiveNode(name=name,
                                       parameters=parameters,
+                                      enabled=enabled,
                                       ancestor=assertions.PASS,
                                       filepath=apache_util.get_file_path(realpath),
                                       metadata=new_metadata)
@@ -389,6 +413,7 @@ class AugeasBlockNode(AugeasDirectiveNode):
 
         # Because of the dynamic nature of AugeasParser and the fact that we're
         # not populating the complete node tree, the ancestor has a dummy value
+
         return AugeasCommentNode(comment=comment,
                                  ancestor=assertions.PASS,
                                  filepath=apache_util.get_file_path(path),
@@ -402,7 +427,13 @@ class AugeasBlockNode(AugeasDirectiveNode):
 
         # Because of the dynamic nature, and the fact that we're not populating
         # the complete ParserNode tree, we use the search parent as ancestor
+
+        # Check if the file was included from the root config or initial state
+        enabled = self.parser.parsed_in_original(
+            apache_util.get_file_path(path)
+        )
         return AugeasDirectiveNode(name=name,
+                                   enabled=enabled,
                                    ancestor=assertions.PASS,
                                    filepath=apache_util.get_file_path(path),
                                    metadata=metadata)

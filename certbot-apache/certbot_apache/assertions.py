@@ -105,7 +105,7 @@ def assertEqualSimple(first, second):
     if not isPass(first) and not isPass(second):
         assert first == second
 
-def assertEqualVirtualHost(first, second):
+def isEqualVirtualHost(first, second):
     """
     Checks that two VirtualHost objects are similar. There are some built
     in differences with the implementations: VirtualHost created by ParserNode

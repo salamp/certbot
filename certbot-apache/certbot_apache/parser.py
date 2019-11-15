@@ -13,6 +13,7 @@ from acme.magic_typing import Dict, List, Set  # pylint: disable=unused-import, 
 from certbot import errors
 from certbot.compat import os
 
+from certbot_apache import apache_util
 from certbot_apache import constants
 
 logger = logging.getLogger(__name__)
@@ -840,7 +841,12 @@ class ApacheParser(object):
         :returns: True if file is parsed in existing configuration tree
         :rtype: bool
         """
-        return self._parsed_by_parser_paths(filep, self.parser_paths)
+        paths = []
+        for directory in self.parser_paths:
+            for filename in self.parser_paths[directory]:
+                paths.append(os.path.join(directory, filename))
+
+        return apache_util.included_in_paths(filep, paths)
 
     def parsed_in_original(self, filep):
         """Checks if the file path is parsed by existing Apache config.
@@ -852,16 +858,11 @@ class ApacheParser(object):
         :returns: True if file is parsed in existing configuration tree
         :rtype: bool
         """
-        return self._parsed_by_parser_paths(filep, self.existing_paths)
-
-    def _parsed_by_parser_paths(self, filep, paths):
-        """Helper function that searches through provided paths and returns
-        True if file path is found in the set"""
-        for directory in paths.keys():
-            for filename in paths[directory]:
-                if fnmatch.fnmatch(filep, os.path.join(directory, filename)):
-                    return True
-        return False
+        paths = []
+        for directory in self.existing_paths:
+            for filename in self.existing_paths[directory]:
+                paths.append(os.path.join(directory, filename))
+        return apache_util.included_in_paths(filep, paths)
 
     def _check_path_actions(self, filepath):
         """Determine actions to take with a new augeas path
