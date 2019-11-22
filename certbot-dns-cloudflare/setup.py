@@ -11,7 +11,7 @@ version = '1.0.0.dev0'
 install_requires = [
     'acme>=0.29.0',
     'certbot>=0.39.0',
-    'cloudflare>=1.5.1',
+    'cloudflare>=2.3.1',
     'mock',
     'setuptools',
     'zope.interface',
