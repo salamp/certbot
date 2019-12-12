@@ -173,7 +173,10 @@ class _CloudflareClient(object):
                 code = int(e)
                 hint = None
 
-                if code == 6003:
+                if code == 0:
+                    hint = ('Unable to determine zone_id for %s', zone_name)
+                    continue
+                elif code == 6003:
                     hint = 'Did you copy your entire API token/key?'
                 elif code == 9103:
                     hint = 'Did you enter the correct email address?'
